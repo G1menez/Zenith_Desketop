@@ -4,12 +4,11 @@ import { useState, useEffect } from "react"
 import { AnimatePresence } from "framer-motion"
 
 import Intro from "./pages/App/Intro"
-import Login from "./pages/App/Login"
-import CadastroCompleto from "./pages/App/CadastroCompleto"
 import Home from "./pages/App/Home"
 import Profile from "./pages/App/Profile"
 import ForgotPassword from "./pages/App/ForgotPassword"
 import Explore from "./pages/App/Explore"
+import AuthPage from "./pages/App/RegistroELogin"
 
 // Componentes
 import SplashScreen from "./components/App/Global/SplashScreen"
@@ -145,8 +144,8 @@ const handleInstall = async () => {
             
             <Routes key="app">
               <Route path="/" element={<Intro />} />
-              <Route path="/login" element={<Login setAppLoading={setLoading} />} />
-              <Route path="/register" element={<CadastroCompleto />} />
+              <Route path="/login" element={<AuthPage setAppLoading={setLoading} />} />
+              <Route path="/register" element={<AuthPage setAppLoading={setLoading} />} />
               <Route path="/home" element={<Home />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
