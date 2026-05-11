@@ -3,11 +3,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import "../../../styles/Global/AppHeader.css";
 
 const navItems = [
-  { label: "Início", href: "#home" },
-  { label: "Sobre", href: "#about" },
-  { label: "Serviços", href: "#services" },
-  { label: "Produtos", href: "#products" },
-  { label: "Contato", href: "#contact" }
+  { label: "Início", href: "/home" },
+  { label: "Serviços", href: "/explore" },
+  { label: "Puta que pariu", href: "/profile" }
 ];
 
 export default function Header() {
