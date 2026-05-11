@@ -375,10 +375,13 @@ const S = {
 
   visualSub: {
     fontSize: 15,
-    color: "rgba(255,255,255,0.6)",
+    color: "#000000ff",
     lineHeight: 1.65,
     maxWidth: 420,
-    marginBottom: "2rem"
+    marginBottom: "2rem",
+    background: "#ac9e9eda",
+    padding: 5,
+    borderRadius: 10
   },
 
   statRow: {
@@ -433,16 +436,16 @@ const item = {
 
 const imageTransition = {
   initial: { opacity: 0, scale: 1.06 },
-  animate: { opacity: 1, scale: 1, transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] } },
+  animate: { opacity: 1, scale: 1, transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] } }, 
   exit: { opacity: 0, scale: 0.97, transition: { duration: 0.55, ease: "easeIn" } }
 }
 
 /* ─── IMAGES (Unsplash — change to your CDN paths as needed) ─────────────── */
 const IMAGES = {
   login:
-    "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1200&q=80", // drone over fields
+    "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1200&q=80",
   register:
-    "https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=1200&q=80"  // lush green crops
+    "/assets/image/imagem-registro.jpg"
 }
 
 /* ─── UTILITY HOOKS ───────────────────────────────────────────────────────── */
@@ -928,7 +931,7 @@ function SidePanel({ mode }) {
       ]
     },
     register: {
-      badge: "🌱 Bem-vindo ao agro digital",
+      badge: "Registre-se na Zenith Agrícola",
       headline: "Transforme sua propriedade com inteligência agrícola",
       sub: "Junte-se a milhares de agricultores que já utilizam tecnologia de precisão para maximizar resultados, reduzir perdas e gerenciar safras com excelência.",
       stats: [

@@ -1,243 +1,351 @@
-// Intro.jsx - VERSÃO CORRIGIDA
+// Intro.jsx — Landing Page Desktop Premium
+// Estilo alinhado com AuthPage / RegistroELogin
+// Dependências: framer-motion, react-router-dom
+// CSS externo: Intro.css
+
+import { useRef, useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { useEffect, useRef, useState } from "react"
+import { motion } from "framer-motion"
 import "../../styles/App/Intro.css"
+import {
+  FaPlane
+} from "react-icons/fa"
 
+import Logo from "/public/assets/image/Logo-redonda.png"
 
-import Logo from "/public/assets/image/Logo.png" 
+/* ─── ANIMATION VARIANTS ─────────────────────────────────────────────────── */
+const fadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  show: (delay = 0) => ({
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, delay, ease: [0.22, 1, 0.36, 1] },
+  }),
+}
 
-export default function Intro() {
-  const navigate = useNavigate()
-  const containerRef = useRef(null)
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+const stagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.11 } },
+}
 
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (window.innerWidth > 768) {
-        const x = (e.clientX / window.innerWidth - 0.5) * 20
-        const y = (e.clientY / window.innerHeight - 0.5) * 20
-        setMousePosition({ x, y })
-      }
-    }
+const cardVariant = {
+  hidden: { opacity: 0, y: 20, scale: 0.97 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+  },
+}
 
-    window.addEventListener('mousemove', handleMouseMove)
-    return () => window.removeEventListener('mousemove', handleMouseMove)
-  }, [])
+/* ─── DATA ───────────────────────────────────────────────────────────────── */
+const STATS = [
+  { num: "98%",  label: "Precisão na detecção"   },
+  { num: "24/7", label: "Monitoramento contínuo"  },
+  { num: "−40%", label: "Perdas evitadas"         },
+]
 
-  // PARTÍCULAS - CORRIGIDAS
-  useEffect(() => {
-    const container = containerRef.current
-    if (!container) return
+const FEATURES = [
+  {
+    icon: <FaPlane />,
+    title: "Análise do Solo",
+    desc: "Umidade, nutrientes e saúde do solo em tempo real",
+  },
+  {
+    icon: "🔍",
+    title: "Detecção de Pragas",
+    desc: "IA avançada identifica 50+ tipos de pragas e doenças",
+  },
+  {
+    icon: "🚁",
+    title: "Voo Autônomo",
+    desc: "Rotas inteligentes e mapeamento 3D da plantação",
+  },
+  {
+    icon: "📊",
+    title: "Relatórios",
+    desc: "Dashboards interativos com insights acionáveis",
+  },
+]
 
-    // Remove partículas existentes para não duplicar
-    const existingParticles = container.querySelectorAll('.particle')
-    existingParticles.forEach(p => p.remove())
+const TRUST = [
+  "Garantia de resultados",
+  "Dados seguros e criptografados",
+  "Suporte 24/7",
+]
 
-    const particles = []
-    const particleCount = window.innerWidth < 768 ? 15 : 40
+/* ─── PARTICLES ──────────────────────────────────────────────────────────── */
+const PARTICLE_COLORS = [
+  "rgba(26,255,122,0.5)",
+  "rgba(0,200,80,0.4)",
+  "rgba(255,255,255,0.3)",
+  "rgba(26,255,122,0.25)",
+]
 
-    for (let i = 0; i < particleCount; i++) {
-      const particle = document.createElement('div')
-      particle.className = 'particle'
-      
-      const size = Math.random() * 8 + 2
-      const duration = Math.random() * 20 + 15
-      const delay = Math.random() * 10
-      const left = Math.random() * 100
-      const top = Math.random() * 100
-      
-      particle.style.width = `${size}px`
-      particle.style.height = `${size}px`
-      particle.style.left = `${left}%`
-      particle.style.top = `${top}%`
-      particle.style.animationDuration = `${duration}s`
-      particle.style.animationDelay = `${delay}s`
-      
-      // CORES DAS PARTÍCULAS - mais visíveis
-      const colors = [
-        'rgba(245, 179, 66, 0.6)',  // dourado
-        'rgba(255, 255, 255, 0.5)', // branco
-        'rgba(74, 139, 74, 0.5)',   // verde
-        'rgba(196, 154, 108, 0.5)'  // terra
-      ]
-      particle.style.background = colors[Math.floor(Math.random() * colors.length)]
-      
-      container.appendChild(particle)
-      particles.push(particle)
-    }
-
-    // Cleanup function
-    return () => {
-      particles.forEach(particle => {
-        if (particle && particle.parentNode) {
-          particle.remove()
-        }
-      })
-    }
-  }, [])
+function Particles({ count = 22 }) {
+  const particles = useRef(
+    Array.from({ length: count }, (_, i) => ({
+      id: i,
+      size: Math.random() * 5 + 1.5,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      duration: Math.random() * 18 + 12,
+      delay: Math.random() * 8,
+      color: PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)],
+    }))
+  ).current
 
   return (
-    <div 
-      className="intro-container" 
-      ref={containerRef}
-      style={{
-        '--mouse-x': `${mousePosition.x}px`,
-        '--mouse-y': `${mousePosition.y}px`
-      }}
-    >
-      <div className="background-layer background-layer-1"></div>
-      <div className="background-layer background-layer-2"></div>
-      <div className="background-overlay"></div>
-      
-      <div className="gradient-sphere gradient-sphere-1"></div>
-      <div className="gradient-sphere gradient-sphere-2"></div>
-      <div className="gradient-sphere gradient-sphere-3"></div>
+    <div className="intro-particles">
+      {particles.map((p) => (
+        <div
+          key={p.id}
+          className="intro-particle"
+          style={{
+            width: p.size,
+            height: p.size,
+            left: `${p.left}%`,
+            top: `${p.top}%`,
+            background: p.color,
+            boxShadow: `0 0 ${p.size * 3}px ${p.color}`,
+            animationName: "floatUp",
+            animationDuration: `${p.duration}s`,
+            animationDelay: `${p.delay}s`,
+            animationTimingFunction: "linear",
+            animationIterationCount: "infinite",
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 
-      <div className="grid-pattern"></div>
+/* ─── FEATURE CARD ───────────────────────────────────────────────────────── */
+function FeatureCard({ icon, title, desc }) {
+  return (
+    <motion.div variants={cardVariant} className="intro-feature-card">
+      <div className="intro-feature-card__top-line" />
+      <span className="intro-feature-card__icon">{icon}</span>
+      <span className="intro-feature-card__title">{title}</span>
+      <p className="intro-feature-card__desc">{desc}</p>
+    </motion.div>
+  )
+}
 
-      <div className="intro-card">
-        <div className="card-glow"></div>
-        <div className="card-pattern"></div>
-        <br /> <br />
-        {/* LOGO SECTION - AJUSTADA */}
-        <div className="logo-section">
-          <div className="logo-wrapper">
-            <div className="logo-container">
-              <img 
-                src={Logo} 
-                alt="AgroVoo" 
-                className="logo-image"
-              />
-              <div className="logo-ring"></div>
-            </div>
-            <br /><br />
-            <div className="logo-badge">
-              <span className="badge-text">TECNOLOGIA AGRO 4.0</span>
-            </div>
-            
-            <h1 className="logo-title">
-              <span className="title-line">Monitoramento</span>
-              <span className="title-line title-line-highlight">Inteligente</span>
-            </h1>
-            
-            <p className="logo-description">
-              Drones autônomos para detecção precoce de pragas e doenças em suas plantações
-            </p>
-          </div>
-        </div>
+/* ─── LEFT PANEL ─────────────────────────────────────────────────────────── */
+function LeftPanel({ onNavigate }) {
+  return (
+    <div className="intro-left">
+      <div className="intro-left__inner">
 
-        {/* Stats Section */}
-        <div className="stats-section">
-          <div className="stat-item">
-            <span className="stat-number">98%</span>
-            <span className="stat-label">Precisão na detecção</span>
+        {/* Logo */}
+        <motion.div
+          className="intro-logo"
+          initial={{ opacity: 0, y: -18 }}
+          animate={{ opacity: 1, y: 0, transition: { duration: 0.55, ease: [0.22, 1, 0.36, 1] } }}
+        >
+          <div className="intro-logo__icon">
+            <img src={Logo} alt="Zenith" />
           </div>
-          <div className="stat-divider"></div>
-          <div className="stat-item">
-            <span className="stat-number">24/7</span>
-            <span className="stat-label">Monitoramento contínuo</span>
+          <div>
+            <div className="intro-logo__sub">A sua precisão agrícola no ponto mais alto</div>
           </div>
-          <div className="stat-divider"></div>
-          <div className="stat-item">
-            <span className="stat-number">-40%</span>
-            <span className="stat-label">Perdas evitadas</span>
-          </div>
-        </div>
+        </motion.div>
 
-        {/* Features Grid */}
-        <div className="features-grid">
-          <div className="feature-card">
-            <div className="feature-icon-wrapper">
-            </div>
-            <div className="feature-content">
-              <h3 className="feature-title">Análise do Solo</h3>
-              <p className="feature-description">Umidade, nutrientes e saúde do solo em tempo real</p>
-            </div>
-            <div className="feature-hover-bg"></div>
-          </div>
+        {/* Status badge */}
+        <motion.div
+          className="intro-badge"
+          custom={0.15}
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+        >
+          <span className="intro-badge__dot" />
+          <span className="intro-badge__text">Sistema ativo e operacional</span>
+        </motion.div>
 
-          <div className="feature-card">
-            <div className="feature-icon-wrapper">
-              <div className="icon-glow"></div>
-            </div>
-            <div className="feature-content">
-              <h3 className="feature-title">Detecção de Pragas</h3>
-              <p className="feature-description">IA avançada identifica 50+ tipos de pragas</p>
-            </div>
-            <div className="feature-hover-bg"></div>
-          </div>
+        {/* Headline */}
+        <motion.h1
+          className="intro-headline"
+          custom={0.25}
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+        >
+          Monitoramento
+          <br />
+          <span className="intro-headline__accent">Inteligente</span>
+        </motion.h1>
 
-          <div className="feature-card">
-            <div className="feature-icon-wrapper">
-              <div className="icon-glow"></div>
-            </div>
-            <div className="feature-content">
-              <h3 className="feature-title">Voo Autônomo</h3>
-              <p className="feature-description">Rotas inteligentes e mapeamento 3D da plantação</p>
-            </div>
-            <div className="feature-hover-bg"></div>
-          </div>
+        {/* Subtitle */}
+        <motion.p
+          className="intro-subtitle"
+          custom={0.35}
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+        >
+          Drones autônomos com IA para detecção precoce de pragas e doenças.
+          Aumente sua produtividade e reduza perdas com dados em tempo real.
+        </motion.p>
 
-          <div className="feature-card">
-            <div className="feature-icon-wrapper">
-              <div className="icon-glow"></div>
-            </div>
-            <div className="feature-content">
-              <h3 className="feature-title">Relatórios</h3>
-              <p className="feature-description">Dashboards interativos com insights acionáveis</p>
-            </div>
-            <div className="feature-hover-bg"></div>
-          </div>
-        </div>
+        {/* Stats */}
+        <motion.div
+          className="intro-stats"
+          variants={stagger}
+          initial="hidden"
+          animate="show"
+        >
+          {STATS.map((s) => (
+            <motion.div key={s.num} className="intro-stats__item" variants={cardVariant}>
+              <span className="intro-stats__num">{s.num}</span>
+              <span className="intro-stats__label">{s.label}</span>
+            </motion.div>
+          ))}
+        </motion.div>
 
         {/* CTA Buttons */}
-        <div className="actions-section">
-          <button 
-            className="btn btn-primary"
-            onClick={() => navigate("/login")}
+        <motion.div
+          className="intro-actions"
+          custom={0.5}
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+        >
+          <motion.button
+            className="intro-btn intro-btn--primary"
+            onClick={() => onNavigate("/login")}
+            whileHover={{ opacity: 0.92, scale: 1.015 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <span className="btn-text">Acessar Plataforma</span>
-            <span className="btn-icon">→</span>
-            <div className="btn-shine"></div>
-          </button>
+            Acessar Plataforma
+            <span>→</span>
+          </motion.button>
 
-          <button 
-            className="btn btn-secondary"
-            onClick={() => navigate("/register")}
+          <motion.button
+            className="intro-btn intro-btn--secondary"
+            onClick={() => onNavigate("/register")}
+            whileTap={{ scale: 0.98 }}
           >
-            <span className="btn-text">Começar Agora</span>
-            <span className="btn-icon">🌿</span>
-            <div className="btn-shine"></div>
-          </button>
-        </div>
+            Começar gratuitamente
+            <span>🌿</span>
+          </motion.button>
+        </motion.div>
 
-        {/* Trust Badges */}
-        <div className="trust-section">
-          <div className="trust-badge">
-          
-            <span className="trust-text">Garantia de resultados</span>
-          </div>
-          <div className="trust-badge">
+        {/* Trust badges */}
+        <motion.div
+          className="intro-trust"
+          custom={0.65}
+          variants={fadeUp}
+          initial="hidden"
+          animate="show"
+        >
+          {TRUST.map((t) => (
+            <div key={t} className="intro-trust__item">
+              <span className="intro-trust__check">✓</span>
+              {t}
+            </div>
+          ))}
+        </motion.div>
 
-            <span className="trust-text">Dados seguros</span>
-          </div>
-          <div className="trust-badge">
-
-            <span className="trust-text">Suporte 24/7</span>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="footer">
-          <p className="footer-text">
-            Já é produtor rural? 
-            <a href="/login" className="footer-link">
-              Entrar na plataforma
-              <span className="link-arrow">→</span>
-            </a>
-          </p>
-        </div>
       </div>
+    </div>
+  )
+}
+
+/* ─── RIGHT PANEL ────────────────────────────────────────────────────────── */
+function RightPanel() {
+  return (
+    <div className="intro-right">
+
+      {/* Glow spheres */}
+      <div className="intro-sphere intro-sphere--top" />
+      <div className="intro-sphere intro-sphere--bottom" />
+
+      {/* Grid & particles */}
+      <div className="intro-grid" />
+      <Particles count={22} />
+
+      {/* Main content */}
+      <div className="intro-right__content">
+
+        {/* Top badge */}
+        <motion.div
+          className="intro-right__badge"
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0, transition: { delay: 0.3, duration: 0.55, ease: [0.22, 1, 0.36, 1] } }}
+        >
+          <span>🛰️ &nbsp;Plataforma Integrada de Precisão</span>
+        </motion.div>
+
+        {/* Headline */}
+        <motion.h2
+          className="intro-right__headline"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0, transition: { delay: 0.4, duration: 0.6, ease: [0.22, 1, 0.36, 1] } }}
+        >
+          Tudo que sua lavoura
+          <br />
+          <span className="intro-right__headline--accent">precisa, em um só lugar</span>
+        </motion.h2>
+
+        {/* Description */}
+        <motion.p
+          className="intro-right__desc"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { delay: 0.5, duration: 0.5 } }}
+        >
+          Da análise de solo ao relatório gerencial — todo o ciclo de monitoramento
+          agrícola com inteligência artificial e precisão milimétrica.
+        </motion.p>
+
+        {/* Feature cards */}
+        <motion.div
+          className="intro-features"
+          variants={stagger}
+          initial="hidden"
+          animate="show"
+          transition={{ delayChildren: 0.55 }}
+        >
+          {FEATURES.map((f) => (
+            <FeatureCard key={f.title} {...f} />
+          ))}
+        </motion.div>
+
+        {/* Status bar */}
+        <motion.div
+          className="intro-status-bar"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0, transition: { delay: 0.9, duration: 0.5 } }}
+        >
+          <div className="intro-status-bar__left">
+            <div className="intro-status-bar__dot" />
+            <span className="intro-status-bar__label">Drones ativos monitorando agora</span>
+          </div>
+          <div className="intro-status-bar__right">
+            <span className="intro-status-bar__count">247</span>
+            <span className="intro-status-bar__unit">em operação</span>
+          </div>
+        </motion.div>
+
+      </div>
+
+      {/* Decorative rings */}
+      <div className="intro-ring intro-ring--inner" />
+      <div className="intro-ring intro-ring--outer" />
+
+    </div>
+  )
+}
+
+/* ─── ROOT EXPORT ────────────────────────────────────────────────────────── */
+export default function Intro() {
+  const navigate = useNavigate()
+
+  return (
+    <div className="intro-page">
+      <LeftPanel onNavigate={navigate} />
+      <RightPanel />
     </div>
   )
 }
