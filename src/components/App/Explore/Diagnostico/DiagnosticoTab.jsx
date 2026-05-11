@@ -1,0 +1,220 @@
+import { useState, useRef, useEffect } from "react"
+import { useLocation } from "react-router-dom"
+import CameraView from "./CameraView"
+import ImagePreview from "./ImagePreview"
+import AnalysisLoader from "./AnalysisLoader"
+import DiagnosisResult from "./DiagnosisResult"
+import AllHistory from "./AllHistory"
+import "../../../../styles/App/Diagnostico.css"
+
+const API_URL = "https://tccamsamericana-api-doencas-soja.hf.space/predict"
+
+const checkIsMobile = () => window.innerWidth < 1025
+
+export default function DiagnosticoTab() {
+  const videoRef = useRef(null)
+  const fileInputRef = useRef(null)
+  const location = useLocation()
+
+  const [step, setStep] = useState("start")
+  const [image, setImage] = useState(null)
+  const [result, setResult] = useState(null)
+  const [history, setHistory] = useState([])
+  const [showAllHistory, setShowAllHistory] = useState(false)
+  const [isMobile, setIsMobile] = useState(checkIsMobile)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(checkIsMobile())
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
+  useEffect(() => {
+    if (location.state?.showHistory) setShowAllHistory(true)
+    if (location.state?.showResult && location.state?.diagnosticData) {
+      const d = location.state.diagnosticData
+      setResult({ doenca: d.disease, confianca: d.confidence, probabilidades: {} })
+      setStep("result")
+    }
+  }, [location])
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("diagnosticHistory")
+      if (saved) setHistory(JSON.parse(saved))
+    } catch { }
+  }, [])
+
+  const saveToHistory = (data) => {
+    let diseaseName = "Desconhecido", confidence = 0
+    if (data?.doenca) { diseaseName = data.doenca; confidence = data.confianca }
+    else if (data?.disease) { diseaseName = data.disease; confidence = data.confidence }
+    else if (data?.classe) { diseaseName = data.classe; confidence = (data.probabilidade || 0) * 100 }
+    else if (data?.label) { diseaseName = data.label; confidence = (data.score || 0) * 100 }
+    else if (data?.prediction) { diseaseName = data.prediction; confidence = (data.probability || 0) * 100 }
+    if (confidence <= 1) confidence = Math.round(confidence * 100)
+    else confidence = Math.min(100, Math.round(confidence))
+    const item = { id: Date.now(), disease: diseaseName, confidence, date: new Date().toLocaleString("pt-BR") }
+    const updated = [item, ...history].slice(0, 20)
+    setHistory(updated)
+    try { localStorage.setItem("diagnosticHistory", JSON.stringify(updated)) } catch { }
+  }
+
+  const startCamera = async () => {
+    setStep("camera")
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      if (videoRef.current) videoRef.current.srcObject = stream
+    } catch (err) { console.error("Câmera:", err) }
+  }
+
+  const stopCamera = () => { videoRef.current?.srcObject?.getTracks().forEach(t => t.stop()) }
+
+  const capturePhoto = () => {
+    const video = videoRef.current
+    if (!video) return
+    const canvas = document.createElement("canvas")
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    canvas.getContext("2d").drawImage(video, 0, 0)
+    setImage(canvas.toDataURL("image/jpeg"))
+    stopCamera()
+    setStep("preview")
+  }
+
+  const openGallery = () => fileInputRef.current?.click()
+  const handleGalleryImage = (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => { setImage(ev.target.result); setStep("preview") }
+    reader.readAsDataURL(file)
+  }
+
+  const analyzeImage = async () => {
+    setStep("analysis")
+    try {
+      const blob = await fetch(image).then(r => r.blob())
+      const formData = new FormData()
+      formData.append("file", blob, "image.jpg")
+      const response = await fetch(API_URL, { method: "POST", body: formData })
+      if (!response.ok) throw new Error(`API ${response.status}`)
+      const data = await response.json()
+      setResult(data)
+      saveToHistory(data)
+      setStep("result")
+    } catch (err) {
+      setResult({ doenca: "Erro ao analisar imagem", confianca: 0 })
+      setStep("result")
+    }
+  }
+
+  const reset = () => { setImage(null); setResult(null); setStep("start") }
+  const backFromHistory = () => {
+    setShowAllHistory(false)
+    try {
+      const saved = localStorage.getItem("diagnosticHistory")
+      if (saved) setHistory(JSON.parse(saved))
+    } catch { }
+  }
+
+  if (showAllHistory) return <AllHistory onBack={backFromHistory} />
+  if (step === "camera") return <CameraView videoRef={videoRef} onCapture={capturePhoto} onCancel={reset} />
+  if (step === "preview") return <ImagePreview image={image} onBack={reset} onAnalyze={analyzeImage} />
+  if (step === "analysis") return <AnalysisLoader />
+  if (step === "result") return <DiagnosisResult result={result} onRestart={reset} />
+
+  return (
+    <div className="diagnostic-container">
+      {/* Cabeçalho */}
+      <div className="diagnostic-header">
+        <div className="header-glow" />
+        <h1 className="diagnostico-title">Diagnóstico <span className="highlight">por IA</span></h1>
+        <p>Identifique doenças em folhas de soja com <span className="highlight">visão computacional</span> de alta precisão.</p>
+      </div>
+
+      {/* Cards de ação (Diagnóstico + Galeria na mesma linha) */}
+      <div className="options-grid">
+        {isMobile && (
+          <button className="option-card" onClick={startCamera}>
+            <div className="card-glow" />
+            <div className="option-icon-wrapper">
+              <div className="option-icon">
+                <span className="material-symbols-outlined">photo_camera</span>
+              </div>
+            </div>
+            <h3>Tirar foto</h3>
+            <p>Capture uma imagem da folha</p>
+            <div className="card-action">
+              <span>Usar câmera</span>
+              <span className="arrow">→</span>
+            </div>
+          </button>
+        )}
+
+        <button className="option-card" onClick={openGallery}>
+          <div className="card-glow" />
+          <div className="option-icon-wrapper">
+            <div className="option-icon">
+              <span className="material-symbols-outlined">photo_library</span>
+            </div>
+          </div>
+          <h3>Abrir galeria</h3>
+          <p>Selecione uma imagem salva</p>
+          <div className="card-action">
+            <span>Selecionar imagem</span>
+            <span className="arrow">→</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Histórico */}
+      <div className="history-section">
+        <div className="section-header">
+          <div className="section-title">
+            <span className="material-symbols-outlined">history</span>
+            <h3>Diagnósticos recentes</h3>
+          </div>
+          {history.length > 0 && (
+            <button className="section-link" onClick={() => setShowAllHistory(true)}>
+              Ver todos
+              <span className="material-symbols-outlined">chevron_right</span>
+            </button>
+          )}
+        </div>
+
+        <div className="history-list">
+          {history.length === 0 ? (
+            <div className="empty-history">
+              <div className="empty-icon">
+                <span className="material-symbols-outlined">biotech</span>
+              </div>
+              <p className="empty-title">Nenhum diagnóstico realizado</p>
+              <p className="empty-description">Escolha uma imagem da galeria para começar.</p>
+            </div>
+          ) : (
+            history.slice(0, 4).map(item => (
+              <div key={item.id} className="history-item">
+                <div className="history-icon">
+                  <span className="material-symbols-outlined">eco</span>
+                </div>
+                <div className="history-info">
+                  <div className="history-name">{item.disease}</div>
+                  <div className="history-date">{item.date}</div>
+                </div>
+                <div className="history-confidence">
+                  <div className="confidence-value">{item.confidence}%</div>
+                  <div className="confidence-bar">
+                    <div className="confidence-fill" style={{ width: `${Math.min(100, item.confidence)}%` }} />
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <input type="file" accept="image/*" ref={fileInputRef} className="hidden-input" onChange={handleGalleryImage} />
+    </div>
+  )
+}
