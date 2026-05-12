@@ -133,10 +133,16 @@ export default function DiagnosticoTab() {
         <p>Identifique doenças em folhas de soja com <span className="highlight">visão computacional</span> de alta precisão.</p>
       </div>
 
-      {/* Cards de ação (Diagnóstico + Galeria na mesma linha) */}
-      <div className="options-grid">
+      {/* Título da seção de ações */}
+      <div className="section-title-main">
+        <h2>Iniciar Diagnóstico</h2>
+      </div>
+
+      {/* Container principal com câmera, galeria e histórico */}
+      <div className="diagnostic-main-grid">
+        {/* Coluna esquerda - Câmera (apenas mobile) */}
         {isMobile && (
-          <button className="option-card" onClick={startCamera}>
+          <button className="option-card camera-card" onClick={startCamera}>
             <div className="card-glow" />
             <div className="option-icon-wrapper">
               <div className="option-icon">
@@ -152,7 +158,8 @@ export default function DiagnosticoTab() {
           </button>
         )}
 
-        <button className="option-card" onClick={openGallery}>
+        {/* Coluna central - Galeria */}
+        <button className="option-card gallery-card" onClick={openGallery}>
           <div className="card-glow" />
           <div className="option-icon-wrapper">
             <div className="option-icon">
@@ -166,51 +173,48 @@ export default function DiagnosticoTab() {
             <span className="arrow">→</span>
           </div>
         </button>
-      </div>
 
-      {/* Histórico */}
-      <div className="history-section">
-        <div className="section-header">
-          <div className="section-title">
-            <span className="material-symbols-outlined">history</span>
-            <h3>Diagnósticos recentes</h3>
+        {/* Coluna direita - Histórico */}
+        <div className="history-card">
+          <div className="history-header">
+            <h3 className="history-title">Diagnósticos Recentes</h3>
+            {history.length > 0 && (
+              <button className="section-link" onClick={() => setShowAllHistory(true)}>
+                Ver todos
+                <span className="material-symbols-outlined">chevron_right</span>
+              </button>
+            )}
           </div>
-          {history.length > 0 && (
-            <button className="section-link" onClick={() => setShowAllHistory(true)}>
-              Ver todos
-              <span className="material-symbols-outlined">chevron_right</span>
-            </button>
-          )}
-        </div>
 
-        <div className="history-list">
-          {history.length === 0 ? (
-            <div className="empty-history">
-              <div className="empty-icon">
-                <span className="material-symbols-outlined">biotech</span>
+          <div className="history-list">
+            {history.length === 0 ? (
+              <div className="empty-history">
+                <div className="empty-icon">
+                  <span className="material-symbols-outlined">biotech</span>
+                </div>
+                <p className="empty-title">Nenhum diagnóstico</p>
+                <p className="empty-description">Inicie uma análise para ver o histórico.</p>
               </div>
-              <p className="empty-title">Nenhum diagnóstico realizado</p>
-              <p className="empty-description">Escolha uma imagem da galeria para começar.</p>
-            </div>
-          ) : (
-            history.slice(0, 4).map(item => (
-              <div key={item.id} className="history-item">
-                <div className="history-icon">
-                  <span className="material-symbols-outlined">eco</span>
-                </div>
-                <div className="history-info">
-                  <div className="history-name">{item.disease}</div>
-                  <div className="history-date">{item.date}</div>
-                </div>
-                <div className="history-confidence">
-                  <div className="confidence-value">{item.confidence}%</div>
-                  <div className="confidence-bar">
-                    <div className="confidence-fill" style={{ width: `${Math.min(100, item.confidence)}%` }} />
+            ) : (
+              history.slice(0, 4).map(item => (
+                <div key={item.id} className="history-item">
+                  <div className="history-icon">
+                    <span className="material-symbols-outlined">eco</span>
+                  </div>
+                  <div className="history-info">
+                    <div className="history-name">{item.disease}</div>
+                    <div className="history-date">{item.date}</div>
+                  </div>
+                  <div className="history-confidence">
+                    <div className="confidence-value">{item.confidence}%</div>
+                    <div className="confidence-bar">
+                      <div className="confidence-fill" style={{ width: `${Math.min(100, item.confidence)}%` }} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
 
