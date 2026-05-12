@@ -1,9 +1,9 @@
-// AuthPage.jsx — Unified Authentication System
-// Dependencies: framer-motion, react-icons/fa, react-router-dom, firebase
-// Usage: <AuthPage /> — replace your Login and CadastroCompleto routes with this single component
+// RegistroELogin.jsx — Premium Split-Card Authentication
+// Design: Dark page + split card (white left / dark right) — Stripe/Linear/Vercel inspired
+// All logic, Firebase, and Framer Motion preserved from original
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { useState, useEffect, useRef } from "react"
+import { motion, AnimatePresence, useMotionValue, useTransform } from "framer-motion"
 import { useNavigate } from "react-router-dom"
 import { auth, db } from "../../services/firebase"
 import {
@@ -17,159 +17,225 @@ import {
   FaCalendarAlt, FaRulerCombined, FaChevronRight, FaCheckCircle
 } from "react-icons/fa"
 
+/* ─── DESIGN TOKENS ───────────────────────────────────────────────────────── */
+const T = {
+  // Page background
+  pageBg: "#080f0a",
+  // Card sides
+  formBg: "#ffffff",
+  visualBg: "#0a0f0b",
+  // Brand
+  green: "#16a34a",
+  greenLight: "#22c55e",
+  greenGlow: "rgba(34,197,94,0.15)",
+  greenBorder: "rgba(34,197,94,0.3)",
+  // Form text
+  labelColor: "#6b7280",
+  headingColor: "#0f1a12",
+  bodyColor: "#374151",
+  placeholderColor: "#9ca3af",
+  // Input
+  inputBg: "#f9fafb",
+  inputBorder: "#e5e7eb",
+  inputBorderFocus: "#16a34a",
+  // Visual panel
+  visualText: "#ffffff",
+  visualSub: "rgba(255,255,255,0.6)",
+  // Utility
+  radius: "28px",
+  radiusSm: "12px",
+  radiusXs: "8px",
+  font: "'DM Sans', 'Sora', system-ui, sans-serif",
+  shadow: "0 32px 80px rgba(0,0,0,0.55), 0 8px 24px rgba(0,0,0,0.35)"
+}
+
 /* ─── STYLES ──────────────────────────────────────────────────────────────── */
 const S = {
-  /* Outer wrapper */
+  // ── PAGE ──
   page: {
     display: "flex",
-    height: "100vh",
+    minHeight: "100vh",
     width: "100vw",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: T.font,
+    background: T.pageBg,
+    position: "relative",
     overflow: "hidden",
-    fontFamily: "'Sora', 'DM Sans', system-ui, sans-serif",
-    background: "#060e08"
+    padding: "20px"
   },
 
-  /* LEFT — form panel */
-  formPanel: {
+  // Ambient glow orbs behind card
+  glowOrb: (x, y, color, size) => ({
+    position: "absolute",
+    left: x, top: y,
+    width: size, height: size,
+    borderRadius: "50%",
+    background: color,
+    filter: "blur(80px)",
+    pointerEvents: "none",
+    zIndex: 0
+  }),
+
+  // ── CARD ──
+  card: {
     position: "relative",
-    width: "48%",
-    minWidth: 420,
-    height: "100%",
+    zIndex: 1,
+    display: "flex",
+    width: "100%",
+    maxWidth: 980,
+    height: "min(88vh, 780px)",
+    borderRadius: T.radius,
+    overflow: "hidden",
+    boxShadow: T.shadow,
+    border: "1px solid rgba(255,255,255,0.06)"
+  },
+
+  // ── LEFT — FORM PANEL ──
+  formPanel: {
+    width: "52%",
+    minWidth: 340,
+    background: T.formBg,
     display: "flex",
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    padding: "2rem 3.5rem",
+    padding: "2.5rem 3rem",
     overflowY: "auto",
     overflowX: "hidden",
-    background: "linear-gradient(160deg, #060e08 0%, #091209 60%, #0a1a0c 100%)",
+    position: "relative",
     zIndex: 2
   },
 
   formPanelInner: {
     width: "100%",
-    maxWidth: 440
+    maxWidth: 400
   },
 
-  /* Logo */
+  // ── LOGO ──
   logo: {
     display: "flex",
     alignItems: "center",
     gap: 10,
-    marginBottom: "2.5rem"
+    marginBottom: "2rem"
   },
   logoIcon: {
-    width: 100,
-    height: 100,
-    borderRadius: "100%",
-    background: "#fff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 18,
-    color: "#060e08",
-    fontWeight: 800
+    width: 40,
+    height: 40,
+    borderRadius: "50%",
+    objectFit: "cover",
+    boxShadow: `0 0 0 2px ${T.greenBorder}`
   },
   logoText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 700,
-    color: "#e8f5e0",
-    letterSpacing: "-0.3px"
+    color: T.headingColor,
+    letterSpacing: "-0.2px"
+  },
+  logoBadge: {
+    fontSize: 10,
+    fontWeight: 600,
+    color: T.green,
+    background: "rgba(22,163,74,0.08)",
+    border: "1px solid rgba(22,163,74,0.2)",
+    borderRadius: 30,
+    padding: "2px 8px",
+    letterSpacing: "0.4px",
+    textTransform: "uppercase",
+    marginLeft: 4
   },
 
-  /* Tab switcher */
+  // ── TABS ──
   tabs: {
     display: "flex",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 14,
-    padding: 4,
-    marginBottom: "2rem",
+    background: "#f3f4f6",
+    border: "1px solid #e5e7eb",
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: "1.75rem",
     gap: 2
   },
   tab: (active) => ({
     flex: 1,
-    padding: "10px 0",
-    borderRadius: 10,
+    padding: "9px 0",
+    borderRadius: 9,
     border: "none",
     cursor: "pointer",
-    fontSize: 13.5,
+    fontSize: 13,
     fontWeight: 600,
-    letterSpacing: "0.2px",
-    transition: "all 0.3s ease",
-    background: active
-      ? "linear-gradient(135deg, #1aff7a 0%, #00c850 100%)"
-      : "transparent",
-    color: active ? "#060e08" : "rgba(255,255,255,0.45)",
+    letterSpacing: "0.1px",
+    transition: "all 0.25s ease",
+    background: active ? "#ffffff" : "transparent",
+    color: active ? T.headingColor : T.labelColor,
+    boxShadow: active ? "0 1px 4px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05)" : "none",
     fontFamily: "inherit"
   }),
 
-  /* Headings */
+  // ── HEADINGS ──
   heading: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: 800,
-    color: "#e8f5e0",
+    color: T.headingColor,
     marginBottom: 4,
-    letterSpacing: "-0.5px",
-    lineHeight: 1.2
+    letterSpacing: "-0.4px",
+    lineHeight: 1.25
   },
   subheading: {
-    fontSize: 14,
-    color: "rgba(255,255,255,0.4)",
-    marginBottom: "1.75rem",
-    lineHeight: 1.5
+    fontSize: 13,
+    color: T.labelColor,
+    marginBottom: "1.5rem",
+    lineHeight: 1.55
   },
 
-  /* Step indicator */
+  // ── STEP INDICATOR ──
   steps: {
     display: "flex",
     alignItems: "center",
     gap: 8,
-    marginBottom: "1.5rem"
+    marginBottom: "1.25rem"
   },
   stepDot: (active, done) => ({
-    width: done ? 26 : 26,
+    width: 26,
     height: 26,
     borderRadius: "50%",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
+    flexShrink: 0,
     transition: "all 0.3s ease",
     background: done
-      ? "linear-gradient(135deg, #1aff7a, #00c850)"
+      ? T.green
       : active
-      ? "rgba(26,255,122,0.15)"
-      : "rgba(255,255,255,0.06)",
+      ? "rgba(22,163,74,0.12)"
+      : "#f3f4f6",
     border: done
       ? "none"
       : active
-      ? "1.5px solid #1aff7a"
-      : "1.5px solid rgba(255,255,255,0.1)",
-    color: done ? "#060e08" : active ? "#1aff7a" : "rgba(255,255,255,0.3)"
+      ? `1.5px solid ${T.green}`
+      : "1.5px solid #d1d5db",
+    color: done ? "#fff" : active ? T.green : "#9ca3af"
   }),
   stepLine: (done) => ({
     flex: 1,
     height: 1.5,
     borderRadius: 2,
-    background: done
-      ? "linear-gradient(90deg, #1aff7a, #00c850)"
-      : "rgba(255,255,255,0.08)",
+    background: done ? T.green : "#e5e7eb",
     transition: "background 0.4s ease"
   }),
 
-  /* Input group */
+  // ── INPUT GROUP ──
   inputGroup: {
-    marginBottom: "1rem"
+    marginBottom: "0.9rem"
   },
   inputLabel: {
     display: "block",
-    fontSize: 12,
+    fontSize: 11.5,
     fontWeight: 600,
-    color: "rgba(255,255,255,0.5)",
-    marginBottom: 6,
-    letterSpacing: "0.5px",
+    color: T.labelColor,
+    marginBottom: 5,
+    letterSpacing: "0.4px",
     textTransform: "uppercase"
   },
   inputWrapper: {
@@ -179,150 +245,157 @@ const S = {
   },
   inputIcon: {
     position: "absolute",
-    left: 14,
-    color: "rgba(255,255,255,0.25)",
-    fontSize: 14,
+    left: 13,
+    color: "#9ca3af",
+    fontSize: 13,
     pointerEvents: "none",
     zIndex: 1
   },
   input: {
     width: "100%",
-    padding: "13px 14px 13px 40px",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 12,
-    color: "#e8f5e0",
-    fontSize: 14,
+    padding: "11px 13px 11px 38px",
+    background: T.inputBg,
+    border: `1.5px solid ${T.inputBorder}`,
+    borderRadius: T.radiusXs,
+    color: T.headingColor,
+    fontSize: 13.5,
     fontFamily: "inherit",
     outline: "none",
-    transition: "border-color 0.25s, background 0.25s, box-shadow 0.25s",
+    transition: "border-color 0.2s, box-shadow 0.2s, background 0.2s",
     boxSizing: "border-box"
   },
   select: {
     width: "100%",
-    padding: "13px 14px 13px 40px",
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: 12,
-    color: "#e8f5e0",
-    fontSize: 14,
+    padding: "11px 13px 11px 38px",
+    background: T.inputBg,
+    border: `1.5px solid ${T.inputBorder}`,
+    borderRadius: T.radiusXs,
+    color: T.headingColor,
+    fontSize: 13.5,
     fontFamily: "inherit",
     outline: "none",
     appearance: "none",
     cursor: "pointer",
-    transition: "border-color 0.25s",
+    transition: "border-color 0.2s, box-shadow 0.2s",
     boxSizing: "border-box"
   },
-
-  /* Row */
   inputRow: {
     display: "grid",
     gridTemplateColumns: "1fr 1fr",
-    gap: "0.75rem"
+    gap: "0.65rem"
   },
 
-  /* Buttons */
+  // ── BUTTONS ──
   btnPrimary: {
     width: "100%",
-    padding: "14px",
-    borderRadius: 12,
+    padding: "12.5px",
+    borderRadius: T.radiusSm,
     border: "none",
     cursor: "pointer",
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: 700,
-    letterSpacing: "0.2px",
+    letterSpacing: "0.1px",
     fontFamily: "inherit",
-    background: "linear-gradient(135deg, #1aff7a 0%, #00c850 100%)",
-    color: "#060e08",
-    marginTop: "0.5rem",
-    transition: "opacity 0.2s, transform 0.15s",
+    background: `linear-gradient(135deg, ${T.greenLight} 0%, ${T.green} 100%)`,
+    color: "#ffffff",
+    marginTop: "0.4rem",
+    transition: "opacity 0.2s, transform 0.15s, box-shadow 0.2s",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8
+    gap: 7,
+    boxShadow: `0 4px 14px rgba(22,163,74,0.35)`
   },
   btnSecondary: {
-    padding: "13px 20px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.1)",
+    padding: "11.5px 18px",
+    borderRadius: T.radiusXs,
+    border: "1.5px solid #e5e7eb",
     cursor: "pointer",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 600,
     fontFamily: "inherit",
     background: "transparent",
-    color: "rgba(255,255,255,0.5)",
+    color: T.labelColor,
     transition: "all 0.2s",
     display: "flex",
     alignItems: "center",
-    gap: 6
+    gap: 5
   },
   btnRow: {
     display: "flex",
-    gap: "0.75rem",
-    marginTop: "0.5rem"
+    gap: "0.65rem",
+    marginTop: "0.4rem"
   },
 
-  /* Alert */
+  // ── ALERT ──
   alert: (type) => ({
-    padding: "10px 14px",
-    borderRadius: 10,
-    fontSize: 13,
-    marginBottom: "0.75rem",
+    padding: "9px 13px",
+    borderRadius: T.radiusXs,
+    fontSize: 12.5,
+    marginBottom: "0.65rem",
     display: "flex",
     alignItems: "center",
-    gap: 8,
-    background:
-      type === "error"
-        ? "rgba(255,70,70,0.1)"
-        : "rgba(26,255,122,0.08)",
-    border:
-      type === "error"
-        ? "1px solid rgba(255,70,70,0.25)"
-        : "1px solid rgba(26,255,122,0.2)",
-    color: type === "error" ? "#ff6b6b" : "#1aff7a"
+    gap: 7,
+    background: type === "error" ? "rgba(239,68,68,0.07)" : "rgba(22,163,74,0.07)",
+    border: type === "error"
+      ? "1px solid rgba(239,68,68,0.25)"
+      : "1px solid rgba(22,163,74,0.25)",
+    color: type === "error" ? "#dc2626" : T.green
   }),
 
-  /* Divider */
+  // ── DIVIDER ──
   divider: {
     display: "flex",
     alignItems: "center",
-    gap: 12,
-    margin: "1rem 0"
+    gap: 10,
+    margin: "0.9rem 0"
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    background: "rgba(255,255,255,0.07)"
+    background: "#f3f4f6"
   },
   dividerText: {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.25)",
-    letterSpacing: "1px"
+    fontSize: 10.5,
+    color: "#9ca3af",
+    letterSpacing: "0.8px",
+    fontWeight: 500
   },
 
-  /* Extras */
+  // ── MISC ──
   forgotLink: {
     fontSize: 12,
-    color: "rgba(26,255,122,0.7)",
+    color: T.green,
     textDecoration: "none",
-    cursor: "pointer"
+    cursor: "pointer",
+    fontWeight: 500
   },
   rememberRow: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "1rem"
+    marginBottom: "0.9rem"
   },
   rememberLabel: {
     display: "flex",
     alignItems: "center",
     gap: 6,
     fontSize: 12,
-    color: "rgba(255,255,255,0.4)",
+    color: T.labelColor,
     cursor: "pointer"
   },
 
-  /* RIGHT — visual panel */
+  // ── SPINNER ──
+  spinner: {
+    width: 15,
+    height: 15,
+    border: "2px solid rgba(255,255,255,0.25)",
+    borderTop: "2px solid #fff",
+    borderRadius: "50%",
+    animation: "spin 0.7s linear infinite"
+  },
+
+  // ── RIGHT — VISUAL PANEL ──
   visualPanel: {
     flex: 1,
     position: "relative",
@@ -330,145 +403,159 @@ const S = {
     display: "flex",
     flexDirection: "column",
     justifyContent: "flex-end",
-    padding: "3rem",
-     height: "100vh",   // ← adicione isso
-    width: "100%" 
+    padding: "2.5rem",
+    width: "100%",
+    height: "85vh"
   },
-
   visualOverlay: {
     position: "absolute",
     inset: 0,
-    background:
-      "linear-gradient(135deg, rgba(6,14,8,0.75) 0%, rgba(6,14,8,0.3) 50%, rgba(6,14,8,0.8) 100%)",
+    background: "linear-gradient(160deg, rgba(10,15,11,0.5) 0%, rgba(10,15,11,0.15) 40%, rgba(10,15,11,0.85) 100%)",
     zIndex: 1
   },
-
+  visualGrid: {
+    position: "absolute",
+    inset: 0,
+    zIndex: 1,
+    backgroundImage: `
+      linear-gradient(rgba(34,197,94,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(34,197,94,0.04) 1px, transparent 1px)
+    `,
+    backgroundSize: "52px 52px"
+  },
   visualContent: {
     position: "relative",
     zIndex: 2
   },
-
   badge: {
     display: "inline-flex",
     alignItems: "center",
-    gap: 6,
-    padding: "5px 12px",
+    gap: 5,
+    padding: "4px 11px",
     borderRadius: 30,
-    background: "rgba(26,255,122,0.12)",
-    border: "1px solid rgba(26,255,122,0.3)",
-    color: "#1aff7a",
-    fontSize: 11,
+    background: "rgba(34,197,94,0.12)",
+    border: `1px solid ${T.greenBorder}`,
+    color: T.greenLight,
+    fontSize: 10,
     fontWeight: 700,
-    letterSpacing: "1px",
+    letterSpacing: "1.2px",
     textTransform: "uppercase",
     marginBottom: "1rem"
   },
-
   visualHeading: {
-    fontSize: "clamp(28px, 3vw, 40px)",
+    fontSize: "clamp(22px, 2.5vw, 34px)",
     fontWeight: 800,
     color: "#fff",
-    lineHeight: 1.15,
-    marginBottom: "1rem",
-    letterSpacing: "-0.5px"
+    lineHeight: 1.18,
+    marginBottom: "0.85rem",
+    letterSpacing: "-0.4px"
   },
-
   visualSub: {
-    fontSize: 15,
-    color: "#000000ff",
+    fontSize: 14,
+    color: "rgba(255,255,255,0.55)",
     lineHeight: 1.65,
-    maxWidth: 420,
-    marginBottom: "2rem",
-    background: "#ac9e9eda",
-    padding: 5,
-    borderRadius: 10
+    maxWidth: 380,
+    marginBottom: "2rem"
   },
-
   statRow: {
     display: "flex",
-    gap: "1.5rem"
+    gap: "1.5rem",
+    flexWrap: "wrap"
   },
-
   stat: {
     display: "flex",
     flexDirection: "column",
     gap: 2
   },
-
   statNum: {
     fontSize: 22,
     fontWeight: 800,
-    color: "#1aff7a"
+    color: T.greenLight,
+    letterSpacing: "-0.5px"
   },
-
   statLabel: {
-    fontSize: 11,
+    fontSize: 10.5,
     color: "rgba(255,255,255,0.4)",
-    letterSpacing: "0.5px"
-  },
-
-  /* Spinner */
-  spinner: {
-    width: 16,
-    height: 16,
-    border: "2px solid rgba(0,0,0,0.2)",
-    borderTop: "2px solid #060e08",
-    borderRadius: "50%",
-    animation: "spin 0.7s linear infinite"
+    letterSpacing: "0.4px",
+    textTransform: "uppercase"
   }
 }
 
 /* ─── ANIMATION VARIANTS ──────────────────────────────────────────────────── */
 const fadeSlide = {
-  initial: { opacity: 0, y: 24 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] } },
-  exit: { opacity: 0, y: -20, transition: { duration: 0.3, ease: "easeIn" } }
+  initial: { opacity: 0, y: 20 },
+  animate: {
+    opacity: 1, y: 0,
+    transition: { duration: 0.42, ease: [0.22, 1, 0.36, 1] }
+  },
+  exit: {
+    opacity: 0, y: -16,
+    transition: { duration: 0.28, ease: "easeIn" }
+  }
 }
 
 const stagger = {
-  animate: { transition: { staggerChildren: 0.07, delayChildren: 0.1 } }
+  animate: { transition: { staggerChildren: 0.065, delayChildren: 0.08 } }
 }
 
 const item = {
-  initial: { opacity: 0, y: 16 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] } }
+  initial: { opacity: 0, y: 14 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] } }
+}
+
+const slideInRight = {
+  initial: { opacity: 0, x: 28 },
+  animate: {
+    opacity: 1, x: 0,
+    transition: { duration: 0.38, ease: [0.22, 1, 0.36, 1] }
+  },
+  exit: {
+    opacity: 0, x: -28,
+    transition: { duration: 0.26, ease: "easeIn" }
+  }
 }
 
 const imageTransition = {
   initial: { opacity: 0, scale: 1.06 },
-  animate: { opacity: 1, scale: 1, transition: { duration: 0.9, ease: [0.22, 1, 0.36, 1] } }, 
-  exit: { opacity: 0, scale: 0.97, transition: { duration: 0.55, ease: "easeIn" } }
+  animate: { opacity: 1, scale: 1, transition: { duration: 0.95, ease: [0.22, 1, 0.36, 1] } },
+  exit: { opacity: 0, scale: 0.97, transition: { duration: 0.5, ease: "easeIn" } }
 }
 
-/* ─── IMAGES (Unsplash — change to your CDN paths as needed) ─────────────── */
+/* ─── IMAGES ──────────────────────────────────────────────────────────────── */
 const IMAGES = {
-  login:
-    "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1200&q=80",
-  register:
-    "/assets/image/imagem-registro.jpg"
+  login: "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1200&q=80",
+  register: "/assets/image/imagem-registro.jpg"
 }
 
-/* ─── UTILITY HOOKS ───────────────────────────────────────────────────────── */
+/* ─── FOCUS STYLE HOOK ────────────────────────────────────────────────────── */
 function useFocusStyle() {
   return {
     onFocus: (e) => {
-      e.target.style.borderColor = "rgba(26,255,122,0.5)"
-      e.target.style.background = "rgba(26,255,122,0.05)"
-      e.target.style.boxShadow = "0 0 0 3px rgba(26,255,122,0.08)"
+      e.target.style.borderColor = T.inputBorderFocus
+      e.target.style.background = "#fff"
+      e.target.style.boxShadow = `0 0 0 3px rgba(22,163,74,0.12)`
     },
     onBlur: (e) => {
-      e.target.style.borderColor = "rgba(255,255,255,0.08)"
-      e.target.style.background = "rgba(255,255,255,0.04)"
+      e.target.style.borderColor = T.inputBorder
+      e.target.style.background = T.inputBg
       e.target.style.boxShadow = "none"
     }
   }
 }
 
+/* ─── UTILITY ─────────────────────────────────────────────────────────────── */
 function formatDocument(value, type) {
   const n = value.replace(/\D/g, "")
   if (type === "CPF")
-    return n.slice(0, 11).replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2")
-  return n.slice(0, 14).replace(/^(\d{2})(\d)/, "$1.$2").replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1/$2").replace(/(\d{4})(\d)/, "$1-$2")
+    return n.slice(0, 11)
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d)/, "$1.$2")
+      .replace(/(\d{3})(\d{1,2})$/, "$1-$2")
+  return n.slice(0, 14)
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2")
 }
 
 /* ─── SPINNER ─────────────────────────────────────────────────────────────── */
@@ -481,7 +568,7 @@ function Spinner() {
   )
 }
 
-/* ─── SMART INPUT ─────────────────────────────────────────────────────────── */
+/* ─── FIELD ───────────────────────────────────────────────────────────────── */
 function Field({ label, icon: Icon, children }) {
   return (
     <motion.div variants={item} style={S.inputGroup}>
@@ -495,7 +582,7 @@ function Field({ label, icon: Icon, children }) {
 }
 
 /* ─── LOGIN FORM ──────────────────────────────────────────────────────────── */
-function LoginForm({ onSuccess, setAppLoading }) {
+function LoginForm({ setAppLoading }) {
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -512,7 +599,7 @@ function LoginForm({ onSuccess, setAppLoading }) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setAlert({ type: "error", text: "Preencha todos os campos para entrar! 🌾" })
+      setAlert({ type: "error", text: "Preencha todos os campos para entrar!" })
       return
     }
     setLoading(true)
@@ -526,16 +613,14 @@ function LoginForm({ onSuccess, setAppLoading }) {
       setTimeout(() => navigate("/home"), 1800)
     } catch (err) {
       const msgs = {
-        "auth/user-not-found": "Usuário não encontrado. Crie sua conta primeiro! 🌱",
-        "auth/wrong-password": "Senha incorreta. Tente novamente. 🔒",
-        "auth/invalid-email": "Email inválido. 📧",
-        "auth/too-many-requests": "Muitas tentativas. Aguarde um momento. ⏳",
+        "auth/user-not-found": "Usuário não encontrado. Crie sua conta primeiro!",
+        "auth/wrong-password": "Senha incorreta. Tente novamente.",
+        "auth/invalid-email": "Email inválido.",
+        "auth/too-many-requests": "Muitas tentativas. Aguarde um momento.",
         "auth/invalid-credential": "Credenciais inválidas. Verifique e tente novamente."
       }
       setAlert({ type: "error", text: msgs[err.code] || "Erro ao fazer login. Tente novamente." })
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   return (
@@ -570,10 +655,12 @@ function LoginForm({ onSuccess, setAppLoading }) {
         <button
           onClick={() => setShowPwd(!showPwd)}
           style={{
-            position: "absolute", right: 14, background: "none",
-            border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)",
-            fontSize: 15, display: "flex", padding: 0
+            position: "absolute", right: 13, background: "none",
+            border: "none", cursor: "pointer", color: "#9ca3af",
+            fontSize: 14, display: "flex", padding: 0, transition: "color 0.2s"
           }}
+          onMouseEnter={e => e.currentTarget.style.color = T.green}
+          onMouseLeave={e => e.currentTarget.style.color = "#9ca3af"}
         >
           {showPwd ? <FaEye /> : <FaEyeSlash />}
         </button>
@@ -582,7 +669,7 @@ function LoginForm({ onSuccess, setAppLoading }) {
       <motion.div variants={item} style={S.rememberRow}>
         <label style={S.rememberLabel}>
           <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
-            style={{ accentColor: "#1aff7a" }} />
+            style={{ accentColor: T.green }} />
           Lembrar-me
         </label>
         <a href="/forgot-password" style={S.forgotLink}>Esqueceu a senha?</a>
@@ -607,10 +694,10 @@ function LoginForm({ onSuccess, setAppLoading }) {
           style={S.btnPrimary}
           onClick={handleLogin}
           disabled={loading}
-          whileHover={{ opacity: 0.92, scale: 1.01 }}
+          whileHover={{ opacity: 0.92, scale: 1.015, boxShadow: "0 6px 20px rgba(22,163,74,0.45)" }}
           whileTap={{ scale: 0.98 }}
         >
-          {loading ? <><Spinner /> Entrando...</> : <>Entrar na plataforma <FaChevronRight size={12} /></>}
+          {loading ? <><Spinner /> Entrando...</> : <>Entrar na plataforma <FaChevronRight size={11} /></>}
         </motion.button>
       </motion.div>
     </motion.div>
@@ -629,7 +716,6 @@ function RegisterForm() {
   const [user, setUser] = useState({
     name: "", age: "", type: "", document: "", email: "", password: ""
   })
-
   const [farm, setFarm] = useState({
     name: "", tipo_proprietario: "", data_aquisicao: "", cep: "",
     bairro: "", municipio: "", uf: "", area_total: "", telefone: "", plantacao: ""
@@ -678,7 +764,7 @@ function RegisterForm() {
       })
       setUserId(cred.user.uid)
       setAlert({ type: "success", text: "Conta criada! Agora cadastre sua fazenda 🌱" })
-      setTimeout(() => { setStep(2); setAlert({ type: "", text: "" }) }, 1400)
+      setTimeout(() => { setAlert({ type: "", text: "" }); setStep(2) }, 1500)
     } catch (err) {
       setAlert({
         type: "error",
@@ -704,15 +790,15 @@ function RegisterForm() {
   }
 
   return (
-    <motion.div key="register" initial="initial" animate="animate" exit="exit">
+    <motion.div key="register" variants={fadeSlide} initial="initial" animate="animate" exit="exit">
       {/* Step indicator */}
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0, transition: { duration: 0.4 } }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0, transition: { duration: 0.35 } }}
         style={S.steps}
       >
         <div style={S.stepDot(step === 1, step > 1)}>
-          {step > 1 ? <FaCheckCircle size={11} /> : "1"}
+          {step > 1 ? <FaCheckCircle size={10} /> : "1"}
         </div>
         <div style={S.stepLine(step > 1)} />
         <div style={S.stepDot(step === 2, false)}>2</div>
@@ -720,7 +806,13 @@ function RegisterForm() {
 
       <AnimatePresence mode="wait">
         {step === 1 ? (
-          <motion.div key="s1" variants={stagger} initial="initial" animate="animate" exit={{ opacity: 0, x: -30, transition: { duration: 0.25 } }}>
+          <motion.div
+            key="s1"
+            variants={stagger}
+            initial="initial"
+            animate="animate"
+            exit={{ opacity: 0, x: -30, transition: { duration: 0.25 } }}
+          >
             <motion.h1 variants={item} style={S.heading}>Criar conta</motion.h1>
             <motion.p variants={item} style={S.subheading}>
               Dados pessoais do agricultor — etapa 1 de 2
@@ -773,7 +865,9 @@ function RegisterForm() {
 
             <AnimatePresence mode="wait">
               {alert.text && (
-                <motion.div key={alert.text} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={S.alert(alert.type)}>
+                <motion.div key={alert.text}
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }} style={S.alert(alert.type)}>
                   {alert.type === "success" ? <FaCheckCircle /> : "⚠️"} {alert.text}
                 </motion.div>
               )}
@@ -781,24 +875,28 @@ function RegisterForm() {
 
             <motion.div variants={item}>
               <motion.button style={S.btnPrimary} onClick={handleStep1} disabled={loading}
-                whileHover={{ opacity: 0.92, scale: 1.01 }} whileTap={{ scale: 0.98 }}>
-                {loading ? <><Spinner /> Criando conta...</> : <>Próximo passo <FaChevronRight size={12} /></>}
+                whileHover={{ opacity: 0.92, scale: 1.015, boxShadow: "0 6px 20px rgba(22,163,74,0.45)" }}
+                whileTap={{ scale: 0.98 }}>
+                {loading ? <><Spinner /> Criando conta...</> : <>Próximo passo <FaChevronRight size={11} /></>}
               </motion.button>
             </motion.div>
           </motion.div>
         ) : (
-          <motion.div key="s2" variants={stagger} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22,1,0.36,1] } }} exit={{ opacity: 0, x: -30, transition: { duration: 0.25 } }}>
-            <motion.h1 variants={item} style={S.heading}>Sua fazenda</motion.h1>
-            <motion.p variants={item} style={S.subheading}>
-              Dados da propriedade rural — etapa 2 de 2
-            </motion.p>
+          <motion.div
+            key="s2"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } }}
+            exit={{ opacity: 0, x: -30, transition: { duration: 0.25 } }}
+          >
+            <motion.h1 style={S.heading}>Sua fazenda</motion.h1>
+            <motion.p style={S.subheading}>Dados da propriedade rural — etapa 2 de 2</motion.p>
 
             <Field label="Nome da Fazenda" icon={FaLeaf}>
               <input style={S.input} name="name" placeholder="Ex: Fazenda Esperança"
                 value={farm.name} onChange={fc} {...focus} />
             </Field>
 
-            <motion.div variants={item} style={S.inputRow}>
+            <div style={S.inputRow}>
               <div style={S.inputGroup}>
                 <label style={S.inputLabel}>Tipo Proprietário</label>
                 <div style={S.inputWrapper}>
@@ -817,9 +915,9 @@ function RegisterForm() {
                     value={farm.data_aquisicao} onChange={fc} {...focus} />
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div variants={item} style={S.inputRow}>
+            <div style={S.inputRow}>
               <div style={S.inputGroup}>
                 <label style={S.inputLabel}>CEP</label>
                 <div style={S.inputWrapper}>
@@ -837,9 +935,9 @@ function RegisterForm() {
                     value={farm.uf} onChange={fc} {...focus} />
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div variants={item} style={S.inputRow}>
+            <div style={S.inputRow}>
               <div style={S.inputGroup}>
                 <label style={S.inputLabel}>Bairro</label>
                 <div style={S.inputWrapper}>
@@ -854,9 +952,9 @@ function RegisterForm() {
                     value={farm.municipio} onChange={fc} {...focus} />
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <motion.div variants={item} style={S.inputRow}>
+            <div style={S.inputRow}>
               <div style={S.inputGroup}>
                 <label style={S.inputLabel}>Área Total (ha)</label>
                 <div style={S.inputWrapper}>
@@ -879,37 +977,50 @@ function RegisterForm() {
                     value={farm.telefone} onChange={fc} {...focus} />
                 </div>
               </div>
-            </motion.div>
+            </div>
 
-            <Field label="Principal Plantação" icon={FaSeedling}>
-              <select style={S.select} name="plantacao" value={farm.plantacao} onChange={fc} {...focus}>
-                <option value="">Selecione a cultura</option>
-                {["Soja","Tomate","Café","Milho","Feijão"].map(c => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </Field>
+            <div style={S.inputGroup}>
+              <label style={S.inputLabel}>Principal Plantação</label>
+              <div style={S.inputWrapper}>
+                <FaSeedling style={S.inputIcon} />
+                <select style={S.select} name="plantacao" value={farm.plantacao} onChange={fc} {...focus}>
+                  <option value="">Selecione a cultura</option>
+                  {["Soja","Tomate","Café","Milho","Feijão"].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
             <AnimatePresence mode="wait">
               {alert.text && (
-                <motion.div key={alert.text} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} style={S.alert(alert.type)}>
+                <motion.div key={alert.text}
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }} style={S.alert(alert.type)}>
                   {alert.type === "success" ? <FaCheckCircle /> : "⚠️"} {alert.text}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <motion.div variants={item} style={S.btnRow}>
-              <motion.button style={S.btnSecondary} onClick={() => setStep(1)}
-                whileHover={{ borderColor: "rgba(255,255,255,0.2)", color: "rgba(255,255,255,0.7)" }}
-                whileTap={{ scale: 0.97 }}>
+            <div style={S.btnRow}>
+              <motion.button
+                style={S.btnSecondary}
+                onClick={() => setStep(1)}
+                whileHover={{ borderColor: "#d1d5db", color: T.headingColor }}
+                whileTap={{ scale: 0.97 }}
+              >
                 ← Voltar
               </motion.button>
-              <motion.button style={{ ...S.btnPrimary, flex: 1, marginTop: 0 }}
-                onClick={handleStep2} disabled={loading}
-                whileHover={{ opacity: 0.92, scale: 1.01 }} whileTap={{ scale: 0.98 }}>
+              <motion.button
+                style={{ ...S.btnPrimary, flex: 1, marginTop: 0 }}
+                onClick={handleStep2}
+                disabled={loading}
+                whileHover={{ opacity: 0.92, scale: 1.01, boxShadow: "0 6px 20px rgba(22,163,74,0.45)" }}
+                whileTap={{ scale: 0.98 }}
+              >
                 {loading ? <><Spinner /> Cadastrando...</> : <>Finalizar cadastro 🌾</>}
               </motion.button>
-            </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -931,9 +1042,9 @@ function SidePanel({ mode }) {
       ]
     },
     register: {
-      badge: "Registre-se na Zenith Agrícola",
+      badge: "Registre-se na Zenith",
       headline: "Transforme sua propriedade com inteligência agrícola",
-      sub: "Junte-se a milhares de agricultores que já utilizam tecnologia de precisão para maximizar resultados, reduzir perdas e gerenciar safras com excelência.",
+      sub: "Junte-se a milhares de agricultores que já utilizam tecnologia de precisão para maximizar resultados e gerenciar safras com excelência.",
       stats: [
         { num: "40%", label: "Redução de insumos" },
         { num: "R$ 2M+", label: "Economizados" },
@@ -965,14 +1076,15 @@ function SidePanel({ mode }) {
       {/* Overlay */}
       <div style={S.visualOverlay} />
 
-      {/* Decorative grid lines */}
+      {/* Grid lines */}
+      <div style={S.visualGrid} />
+
+      {/* Floating ambient light */}
       <div style={{
-        position: "absolute", inset: 0, zIndex: 1,
-        backgroundImage: `
-          linear-gradient(rgba(26,255,122,0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(26,255,122,0.04) 1px, transparent 1px)
-        `,
-        backgroundSize: "60px 60px"
+        position: "absolute", bottom: "30%", right: "10%",
+        width: 200, height: 200, borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(34,197,94,0.12) 0%, transparent 70%)",
+        zIndex: 1, filter: "blur(20px)", pointerEvents: "none"
       }} />
 
       {/* Content */}
@@ -981,11 +1093,15 @@ function SidePanel({ mode }) {
           key={mode + "content"}
           style={S.visualContent}
           initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0, transition: { duration: 0.6, delay: 0.2, ease: [0.22,1,0.36,1] } }}
+          animate={{ opacity: 1, y: 0, transition: { duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] } }}
           exit={{ opacity: 0, y: -20, transition: { duration: 0.3 } }}
         >
           <div style={S.badge}>
-            <span>{c.badge}</span>
+            <span style={{
+              width: 5, height: 5, borderRadius: "50%",
+              background: T.greenLight, display: "inline-block", marginRight: 2
+            }} />
+            {c.badge}
           </div>
 
           <h2 style={S.visualHeading}>{c.headline}</h2>
@@ -1012,107 +1128,144 @@ function SidePanel({ mode }) {
 
 /* ─── AUTH PAGE (root export) ─────────────────────────────────────────────── */
 export default function AuthPage({ setAppLoading }) {
-  const [mode, setMode] = useState("login") // "login" | "register"
+  const [mode, setMode] = useState("login")
+
+  const switchMode = (next) => setMode(next)
 
   return (
     <>
-      {/* Google Font */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&display=swap');
-        *{box-sizing:border-box;margin:0;padding:0}
-        ::-webkit-scrollbar{width:4px}
-        ::-webkit-scrollbar-track{background:transparent}
-        ::-webkit-scrollbar-thumb{background:rgba(26,255,122,0.2);border-radius:4px}
-        input::placeholder,select option{color:rgba(255,255,255,0.2)}
-        select option{background:#091209;color:#e8f5e0}
-        input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.4)}
-        @media(max-width:860px){
-          .auth-visual{display:none!important}
-          .auth-form-panel{width:100%!important;min-width:unset!important;padding:2rem 1.5rem!important}
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        /* Scrollbar — form panel */
+        .auth-form-panel::-webkit-scrollbar { width: 4px; }
+        .auth-form-panel::-webkit-scrollbar-track { background: transparent; }
+        .auth-form-panel::-webkit-scrollbar-thumb { background: rgba(22,163,74,0.2); border-radius: 4px; }
+
+        /* Placeholder */
+        .auth-form-panel input::placeholder,
+        .auth-form-panel select::placeholder { color: #9ca3af; }
+        select option { background: #fff; color: #0f1a12; }
+        input[type=date]::-webkit-calendar-picker-indicator { opacity: 0.45; cursor: pointer; }
+
+        /* Mobile */
+        @media (max-width: 800px) {
+          .auth-visual { display: none !important; }
+          .auth-form-panel {
+            width: 100% !important;
+            min-width: unset !important;
+            padding: 2rem 1.75rem !important;
+          }
+          .auth-card {
+            height: auto !important;
+            min-height: 90vh;
+            border-radius: 20px !important;
+          }
+        }
+        @media (max-width: 480px) {
+          .auth-card { border-radius: 0 !important; min-height: 100vh; margin: 0; }
+          .auth-page { padding: 0 !important; }
         }
       `}</style>
 
-      <div style={S.page}>
-        {/* LEFT */}
-        <div className="auth-form-panel" style={S.formPanel}>
-          <div style={S.formPanelInner}>
+      <div className="auth-page" style={S.page}>
+        {/* Ambient background glow orbs */}
+        <div style={S.glowOrb("5%", "10%", "radial-gradient(circle, rgba(34,197,94,0.08) 0%, transparent 70%)", 500)} />
+        <div style={S.glowOrb("60%", "70%", "radial-gradient(circle, rgba(34,197,94,0.05) 0%, transparent 70%)", 400)} />
+        <div style={S.glowOrb("80%", "5%", "radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%)", 350)} />
 
-            {/* Logo */}
-            <motion.div
-              style={S.logo}
-              initial={{ opacity: 0, y: -16 }}
-              animate={{ opacity: 1, y: 0, transition: { duration: 0.5 } }}
-            >
-              <div><img style={S.logoIcon} src="assets/image/Logo-redonda.png" alt="" /></div>
-              <span style={S.logoText}>Agricultura inteligente</span>
-            </motion.div>
+        {/* ── SPLIT CARD ── */}
+        <motion.div
+          className="auth-card"
+          style={S.card}
+          initial={{ opacity: 0, y: 28, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } }}
+        >
+          {/* LEFT — Form */}
+          <div className="auth-form-panel" style={S.formPanel}>
+            <div style={S.formPanelInner}>
 
-            {/* Tab switcher */}
-            <motion.div
-              style={S.tabs}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0, transition: { duration: 0.45, delay: 0.1 } }}
-            >
-              {[["login","Entrar"],["register","Cadastrar"]].map(([id, label]) => (
-                <button
-                  key={id}
-                  style={S.tab(mode === id)}
-                  onClick={() => { setMode(id) }}
-                >
-                  {label}
-                </button>
-              ))}
-            </motion.div>
-
-            {/* Forms */}
-            <AnimatePresence mode="wait">
-              {mode === "login" ? (
-                <LoginForm key="login" setAppLoading={setAppLoading} />
-              ) : (
-                <RegisterForm key="register" />
-              )}
-            </AnimatePresence>
-
-            {/* Divider + switch CTA */}
-            <motion.div
-              style={S.divider}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { delay: 0.6 } }}
-            >
-              <div style={S.dividerLine} />
-              <span style={S.dividerText}>
-                {mode === "login" ? "NÃO TEM CONTA?" : "JÁ TEM CONTA?"}
-              </span>
-              <div style={S.dividerLine} />
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { delay: 0.65 } }}
-              style={{ textAlign: "center" }}
-            >
-              <button
-                onClick={() => setMode(mode === "login" ? "register" : "login")}
-                style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  color: "rgba(26,255,122,0.75)", fontSize: 13.5, fontWeight: 600,
-                  fontFamily: "inherit", letterSpacing: "0.2px",
-                  transition: "color 0.2s"
-                }}
-                onMouseEnter={e => e.target.style.color = "#1aff7a"}
-                onMouseLeave={e => e.target.style.color = "rgba(26,255,122,0.75)"}
+              {/* Logo */}
+              <motion.div
+                style={S.logo}
+                initial={{ opacity: 0, y: -12 }}
+                animate={{ opacity: 1, y: 0, transition: { duration: 0.45 } }}
               >
-                {mode === "login" ? "Criar conta gratuita →" : "← Entrar na minha conta"}
-              </button>
-            </motion.div>
+                <img style={S.logoIcon} src="assets/image/Logo-redonda.png" alt="Zenith" />
+                <div>
+                  <span style={S.logoText}>Zenith Agrícola</span>
+                  <span style={S.logoBadge}>Beta</span>
+                </div>
+              </motion.div>
 
+              {/* Tab switcher */}
+              <motion.div
+                style={S.tabs}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0, transition: { duration: 0.4, delay: 0.08 } }}
+              >
+                {[["login", "Entrar"], ["register", "Cadastrar"]].map(([id, label]) => (
+                  <button
+                    key={id}
+                    style={S.tab(mode === id)}
+                    onClick={() => switchMode(id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </motion.div>
+
+              {/* Forms */}
+              <AnimatePresence mode="wait">
+                {mode === "login" ? (
+                  <LoginForm key="login" setAppLoading={setAppLoading} />
+                ) : (
+                  <RegisterForm key="register" />
+                )}
+              </AnimatePresence>
+
+              {/* Divider */}
+              <motion.div
+                style={S.divider}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, transition: { delay: 0.55 } }}
+              >
+                <div style={S.dividerLine} />
+                <span style={S.dividerText}>
+                  {mode === "login" ? "NÃO TEM CONTA?" : "JÁ TEM CONTA?"}
+                </span>
+                <div style={S.dividerLine} />
+              </motion.div>
+
+              {/* Switch CTA */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1, transition: { delay: 0.6 } }}
+                style={{ textAlign: "center" }}
+              >
+                <motion.button
+                  onClick={() => switchMode(mode === "login" ? "register" : "login")}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: T.green, fontSize: 13, fontWeight: 600,
+                    fontFamily: "inherit", letterSpacing: "0.1px"
+                  }}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {mode === "login" ? "Criar conta gratuita →" : "← Entrar na minha conta"}
+                </motion.button>
+              </motion.div>
+
+            </div>
           </div>
-        </div>
 
-        {/* RIGHT — visual */}
-        <div className="auth-visual" style={{ flex: 1, position: "relative", height: 800 }}>
-          <SidePanel mode={mode} />
-        </div>
+          {/* RIGHT — Visual */}
+          <div className="auth-visual" style={{ flex: 1, position: "relative" }}>
+            <SidePanel mode={mode} />
+          </div>
+        </motion.div>
       </div>
     </>
   )
