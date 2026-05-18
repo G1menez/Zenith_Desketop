@@ -133,10 +133,6 @@ export default function DiagnosticoTab() {
         <p>Identifique doenças em folhas de soja com <span className="highlight">visão computacional</span> de alta precisão.</p>
       </div>
 
-      {/* Título da seção de ações */}
-      <div className="section-title-main">
-      </div>
-
       {/* Container principal com câmera, galeria e histórico */}
       <div className="diagnostic-main-grid">
         {/* Coluna esquerda - Câmera (apenas mobile) */}
@@ -173,11 +169,11 @@ export default function DiagnosticoTab() {
           </div>
         </button>
 
-        {/* Coluna direita - Histórico */}
+        {/* Coluna direita - Histórico (limitado a 2 itens) */}
         <div className="history-card">
           <div className="history-header">
             <h3 className="history-title">Diagnósticos Recentes</h3>
-            {history.length > 0 && (
+            {history.length > 2 && (
               <button className="section-link" onClick={() => setShowAllHistory(true)}>
                 Ver todos
                 <span className="material-symbols-outlined">chevron_right</span>
@@ -195,7 +191,7 @@ export default function DiagnosticoTab() {
                 <p className="empty-description">Inicie uma análise para ver o histórico.</p>
               </div>
             ) : (
-              history.slice(0, 4).map(item => (
+              history.slice(0, 2).map(item => (
                 <div key={item.id} className="history-item">
                   <div className="history-icon">
                     <span className="material-symbols-outlined">eco</span>

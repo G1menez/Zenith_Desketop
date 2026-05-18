@@ -1,284 +1,322 @@
 import { useState, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import "../../../../styles/App/AllHistory.css"
 
-export default function AllHistory() {
-  const navigate = useNavigate()
+export default function AllHistory({ onBack }) {
   const [history, setHistory] = useState([])
-  const [filteredHistory, setFilteredHistory] = useState([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterType, setFilterType] = useState("all") // all, high, medium, low
-  const [sortBy, setSortBy] = useState("date") // date, confidence, name
+  const [editingId, setEditingId] = useState(null)
+  const [editValue, setEditValue] = useState("")
 
-  // Carregar histórico do localStorage
   useEffect(() => {
-    const saved = localStorage.getItem("diagnosticHistory")
-    if (saved) {
-      const parsedHistory = JSON.parse(saved)
-      setHistory(parsedHistory)
-      setFilteredHistory(parsedHistory)
-    }
+    loadHistory()
   }, [])
 
-  // Filtrar e ordenar histórico
-  useEffect(() => {
-    let filtered = [...history]
-
-    // Filtrar por busca
-    if (searchTerm) {
-      filtered = filtered.filter(item =>
-        item.disease.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    }
-
-    // Filtrar por confiança
-    if (filterType === "high") {
-      filtered = filtered.filter(item => item.confidence >= 80)
-    } else if (filterType === "medium") {
-      filtered = filtered.filter(item => item.confidence >= 50 && item.confidence < 80)
-    } else if (filterType === "low") {
-      filtered = filtered.filter(item => item.confidence < 50)
-    }
-
-    // Ordenar
-    if (sortBy === "date") {
-      filtered.sort((a, b) => b.id - a.id)
-    } else if (sortBy === "confidence") {
-      filtered.sort((a, b) => b.confidence - a.confidence)
-    } else if (sortBy === "name") {
-      filtered.sort((a, b) => a.disease.localeCompare(b.disease))
-    }
-
-    setFilteredHistory(filtered)
-  }, [searchTerm, filterType, sortBy, history])
-
-  // Função para deletar um diagnóstico
-  const deleteDiagnostic = (id) => {
-    if (window.confirm("Tem certeza que deseja excluir este diagnóstico?")) {
-      const updatedHistory = history.filter(item => item.id !== id)
-      setHistory(updatedHistory)
-      localStorage.setItem("diagnosticHistory", JSON.stringify(updatedHistory))
-    }
+  const loadHistory = () => {
+    try {
+      const saved = localStorage.getItem("diagnosticHistory")
+      if (saved) setHistory(JSON.parse(saved))
+    } catch { }
   }
 
-  // Função para limpar todo o histórico
-  const clearAllHistory = () => {
-    if (window.confirm("Tem certeza que deseja excluir TODO o histórico? Esta ação não pode ser desfeita.")) {
-      setHistory([])
-      localStorage.setItem("diagnosticHistory", JSON.stringify([]))
-    }
+  const saveToLocalStorage = (updatedHistory) => {
+    setHistory(updatedHistory)
+    localStorage.setItem("diagnosticHistory", JSON.stringify(updatedHistory))
   }
 
-  // Função para exportar histórico
-  const exportHistory = () => {
-    const dataStr = JSON.stringify(history, null, 2)
-    const dataUri = "data:application/json;charset=utf-8,"+ encodeURIComponent(dataStr)
-    const exportFileDefaultName = `diagnosticos_${new Date().toISOString()}.json`
-    const linkElement = document.createElement("a")
-    linkElement.setAttribute("href", dataUri)
-    linkElement.setAttribute("download", exportFileDefaultName)
-    linkElement.click()
+  const deleteItem = (id) => {
+    const updated = history.filter(item => item.id !== id)
+    saveToLocalStorage(updated)
   }
 
-  // Estatísticas
-  const totalDiagnostics = history.length
-  const averageConfidence = history.length > 0 
-    ? Math.round(history.reduce((acc, item) => acc + item.confidence, 0) / history.length)
-    : 0
-  const mostCommonDisease = history.length > 0
-    ? Object.entries(history.reduce((acc, item) => {
-        acc[item.disease] = (acc[item.disease] || 0) + 1
-        return acc
-      }, {})).sort((a, b) => b[1] - a[1])[0]?.[0] || "Nenhum"
-    : "Nenhum"
-
-  // Função para obter classe de severidade
-  const getConfidenceClass = (confidence) => {
-    if (confidence >= 80) return "high"
-    if (confidence >= 50) return "medium"
-    return "low"
+  const startEdit = (item) => {
+    setEditingId(item.id)
+    setEditValue(item.disease)
   }
 
-  // Função para obter texto de severidade
-  const getConfidenceText = (confidence) => {
-    if (confidence >= 80) return "Alta confiança"
-    if (confidence >= 50) return "Média confiança"
-    return "Baixa confiança"
+  const saveEdit = (id) => {
+    if (editValue.trim() === "") return
+    const updated = history.map(item =>
+      item.id === id ? { ...item, disease: editValue.trim() } : item
+    )
+    saveToLocalStorage(updated)
+    setEditingId(null)
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
   }
 
   return (
     <div className="all-history-container">
-      {/* Header */}
-      <div className="history-header">
-        <button className="back-button" onClick={() => navigate(-1)}>
+      <div className="all-history-header">
+        <button className="back-button" onClick={onBack}>
           <span className="material-symbols-outlined">arrow_back</span>
+          Voltar
         </button>
         <h1>Histórico de Diagnósticos</h1>
-        <div className="header-actions">
-          {history.length > 0 && (
-            <>
-              <button className="export-button" onClick={exportHistory}>
-                <span className="material-symbols-outlined">download</span>
-              </button>
-              <button className="clear-button" onClick={clearAllHistory}>
-                <span className="material-symbols-outlined">delete_sweep</span>
-              </button>
-            </>
-          )}
-        </div>
+        <p>Gerencie todos os diagnósticos realizados</p>
       </div>
 
-      {/* Estatísticas */}
-      {history.length > 0 && (
-        <div className="stats-cards">
-          <div className="stat-card">
-            <span className="material-symbols-outlined">analytics</span>
-            <div className="stat-info">
-              <strong>{totalDiagnostics}</strong>
-              <p>Total de diagnósticos</p>
-            </div>
+      {history.length === 0 ? (
+        <div className="empty-history-large">
+          <div className="empty-icon">
+            <span className="material-symbols-outlined">history</span>
           </div>
-          <div className="stat-card">
-            <span className="material-symbols-outlined">verified</span>
-            <div className="stat-info">
-              <strong>{averageConfidence}%</strong>
-              <p>Confiança média</p>
-            </div>
-          </div>
-          <div className="stat-card">
-            <span className="material-symbols-outlined">eco</span>
-            <div className="stat-info">
-              <strong>{mostCommonDisease}</strong>
-              <p>Doença mais comum</p>
-            </div>
-          </div>
+          <p className="empty-title">Nenhum diagnóstico encontrado</p>
+          <p className="empty-description">Faça uma análise para começar.</p>
+          <button className="btn primary" onClick={onBack}>Voltar ao início</button>
         </div>
-      )}
-
-      {/* Filtros e Busca */}
-      {history.length > 0 && (
-        <div className="filters-section">
-          <div className="search-box">
-            <span className="material-symbols-outlined">search</span>
-            <input
-              type="text"
-              placeholder="Buscar por doença..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-
-          <div className="filter-buttons">
-            <button
-              className={`filter-btn ${filterType === "all" ? "active" : ""}`}
-              onClick={() => setFilterType("all")}
-            >
-              Todos
-            </button>
-            <button
-              className={`filter-btn high ${filterType === "high" ? "active" : ""}`}
-              onClick={() => setFilterType("high")}
-            >
-              Alta confiança
-            </button>
-            <button
-              className={`filter-btn medium ${filterType === "medium" ? "active" : ""}`}
-              onClick={() => setFilterType("medium")}
-            >
-              Média confiança
-            </button>
-            <button
-              className={`filter-btn low ${filterType === "low" ? "active" : ""}`}
-              onClick={() => setFilterType("low")}
-            >
-              Baixa confiança
-            </button>
-          </div>
-
-          <div className="sort-buttons">
-            <span>Ordenar por:</span>
-            <button
-              className={`sort-btn ${sortBy === "date" ? "active" : ""}`}
-              onClick={() => setSortBy("date")}
-            >
-              Data
-            </button>
-            <button
-              className={`sort-btn ${sortBy === "confidence" ? "active" : ""}`}
-              onClick={() => setSortBy("confidence")}
-            >
-              Confiança
-            </button>
-            <button
-              className={`sort-btn ${sortBy === "name" ? "active" : ""}`}
-              onClick={() => setSortBy("name")}
-            >
-              Nome
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Lista de Diagnósticos */}
-      <div className="history-list">
-        {filteredHistory.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">
-              <span className="material-symbols-outlined">history</span>
-            </div>
-            <h3>Nenhum diagnóstico encontrado</h3>
-            {searchTerm || filterType !== "all" ? (
-              <p>Tente ajustar os filtros ou a busca</p>
-            ) : (
-              <p>Realize seu primeiro diagnóstico tirando uma foto ou selecionando da galeria</p>
-            )}
-            <button className="new-diagnostic-btn" onClick={() => navigate(-1)}>
-              <span className="material-symbols-outlined">add</span>
-              Novo diagnóstico
-            </button>
-          </div>
-        ) : (
-          filteredHistory.map((item) => (
-            <div key={item.id} className={`history-card ${getConfidenceClass(item.confidence)}`}>
-              <div className="history-card-content">
-                <div className="history-card-icon">
+      ) : (
+        <div className="history-grid">
+          {history.map(item => (
+            <div key={item.id} className="history-card-full">
+              <div className="history-card-header">
+                <div className="history-icon-large">
                   <span className="material-symbols-outlined">eco</span>
                 </div>
-                <div className="history-card-info">
-                  <h3>{item.disease}</h3>
-                  <div className="history-card-meta">
-                    <span className="date">
-                      <span className="material-symbols-outlined">schedule</span>
-                      {item.date}
-                    </span>
-                    <span className={`confidence-badge ${getConfidenceClass(item.confidence)}`}>
-                      {getConfidenceText(item.confidence)}
-                    </span>
-                  </div>
-                  <div className="confidence-bar-container">
-                    <div className="confidence-bar-label">
-                      <span>Confiança</span>
-                      <span>{item.confidence}%</span>
-                    </div>
-                    <div className="confidence-bar">
-                      <div
-                        className="confidence-fill"
-                        style={{ width: `${item.confidence}%` }}
-                      ></div>
-                    </div>
+                <div className="history-card-actions">
+                  {editingId === item.id ? (
+                    <>
+                      <button className="icon-btn save" onClick={() => saveEdit(item.id)}>
+                        <span className="material-symbols-outlined">check</span>
+                      </button>
+                      <button className="icon-btn cancel" onClick={cancelEdit}>
+                        <span className="material-symbols-outlined">close</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="icon-btn edit" onClick={() => startEdit(item)}>
+                        <span className="material-symbols-outlined">edit</span>
+                      </button>
+                      <button className="icon-btn delete" onClick={() => deleteItem(item.id)}>
+                        <span className="material-symbols-outlined">delete</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="history-card-content">
+                {editingId === item.id ? (
+                  <input
+                    type="text"
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    className="edit-input"
+                    autoFocus
+                  />
+                ) : (
+                  <h3 className="disease-name">{item.disease}</h3>
+                )}
+                <div className="confidence-info">
+                  <span className="confidence-percent">{item.confidence}%</span>
+                  <div className="confidence-bar-full">
+                    <div className="confidence-fill-full" style={{ width: `${item.confidence}%` }} />
                   </div>
                 </div>
-                <button
-                  className="delete-item-btn"
-                  onClick={() => deleteDiagnostic(item.id)}
-                >
-                  <span className="material-symbols-outlined">delete</span>
-                </button>
+                <div className="history-date-full">{item.date}</div>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+
+      <style jsx>{`
+        .all-history-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 2rem;
+          min-height: 100vh;
+        }
+        .all-history-header {
+          text-align: center;
+          margin-bottom: 3rem;
+          position: relative;
+        }
+        .back-button {
+          position: absolute;
+          left: 0;
+          top: 0;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          background: rgba(0, 255, 170, 0.08);
+          border: 1px solid rgba(0, 255, 170, 0.25);
+          padding: 0.5rem 1.2rem;
+          border-radius: 40px;
+          color: #00ffaa;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-weight: 500;
+        }
+        .back-button:hover {
+          background: rgba(0, 255, 170, 0.2);
+          transform: translateX(-4px);
+          box-shadow: 0 0 12px rgba(0,255,170,0.3);
+        }
+        .all-history-header h1 {
+          font-size: 2.2rem;
+          background: linear-gradient(135deg, #00ffaa, #0066ff);
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          margin-bottom: 0.5rem;
+          letter-spacing: -0.02em;
+        }
+        .all-history-header p {
+          color: #8fa3b8;
+          font-size: 1rem;
+        }
+        .history-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+          gap: 1.5rem;
+        }
+        .history-card-full {
+          background: transparent;
+          border: 1px solid rgba(0, 255, 170, 0.25);
+          border-radius: 28px;
+          padding: 1.5rem;
+          transition: all 0.3s ease;
+        }
+        .history-card-full:hover {
+          border-color: #00ffaa;
+          transform: translateY(-6px);
+          box-shadow: 0 0 0 1px rgba(0,255,170,0.3), 0 12px 28px rgba(0,0,0,0.4);
+        }
+        .history-card-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1rem;
+        }
+        .history-icon-large {
+          width: 52px;
+          height: 52px;
+          background: rgba(0, 255, 170, 0.1);
+          border-radius: 18px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid rgba(0, 255, 170, 0.4);
+        }
+        .history-icon-large span {
+          font-size: 30px;
+          color: #00ffaa;
+        }
+        .history-card-actions {
+          display: flex;
+          gap: 0.5rem;
+        }
+        .icon-btn {
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          padding: 0.4rem;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+        .icon-btn span { font-size: 22px; }
+        .icon-btn.edit { color: #00ccff; }
+        .icon-btn.delete { color: #ff4d4d; }
+        .icon-btn.save { color: #00ffaa; }
+        .icon-btn.cancel { color: #aaa; }
+        .icon-btn:hover {
+          background: rgba(255,255,255,0.08);
+          transform: scale(1.08);
+        }
+        .disease-name {
+          font-size: 1.3rem;
+          font-weight: 600;
+          color: #fff;
+          margin-bottom: 0.75rem;
+          word-break: break-word;
+        }
+        .edit-input {
+          width: 100%;
+          padding: 0.6rem;
+          background: #050a07;
+          border: 1px solid #00ffaa;
+          border-radius: 16px;
+          color: #fff;
+          font-size: 1rem;
+          margin-bottom: 0.75rem;
+          outline: none;
+        }
+        .confidence-info {
+          margin-bottom: 0.75rem;
+        }
+        .confidence-percent {
+          font-size: 0.9rem;
+          font-weight: 600;
+          color: #00ffaa;
+          display: inline-block;
+          margin-bottom: 0.3rem;
+        }
+        .confidence-bar-full {
+          height: 6px;
+          background: rgba(255,255,255,0.1);
+          border-radius: 3px;
+          overflow: hidden;
+        }
+        .confidence-fill-full {
+          height: 100%;
+          background: linear-gradient(90deg, #00ffaa, #0066ff);
+          border-radius: 3px;
+        }
+        .history-date-full {
+          font-size: 0.75rem;
+          color: #6c7c8c;
+          margin-top: 0.5rem;
+        }
+        .empty-history-large {
+          text-align: center;
+          padding: 4rem 2rem;
+          background: transparent;
+          border-radius: 36px;
+          margin-top: 2rem;
+          border: 1px dashed rgba(0,255,170,0.3);
+        }
+        .empty-history-large .empty-icon {
+          width: 90px;
+          height: 90px;
+          margin: 0 auto 1rem;
+          background: rgba(0, 255, 170, 0.08);
+          border-radius: 45px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 1px solid rgba(0,255,170,0.3);
+        }
+        .empty-icon span { font-size: 48px; color: #00ffaa; }
+        .empty-title { font-size: 1.2rem; color: #fff; margin-bottom: 0.5rem; }
+        .empty-description { color: #8fa3b8; margin-bottom: 1.5rem; }
+        .btn.primary {
+          margin-top: 1rem;
+          padding: 0.7rem 1.8rem;
+          background: linear-gradient(135deg, #00ffaa, #0066ff);
+          border: none;
+          border-radius: 40px;
+          font-weight: 600;
+          cursor: pointer;
+          color: #000;
+          transition: all 0.2s;
+        }
+        .btn.primary:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(0,255,170,0.4);
+        }
+        @media (max-width: 768px) {
+          .all-history-container { padding: 1rem; }
+          .history-grid { grid-template-columns: 1fr; gap: 1rem; }
+          .back-button { position: static; margin-bottom: 1rem; display: inline-flex; }
+          .all-history-header { text-align: left; }
+          .all-history-header h1 { font-size: 1.6rem; }
+          .history-card-full { padding: 1.2rem; }
+        }
+      `}</style>
     </div>
   )
 }
